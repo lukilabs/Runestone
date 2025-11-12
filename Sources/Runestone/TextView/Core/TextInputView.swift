@@ -329,9 +329,6 @@ final class TextInputView: UIView, UITextInput {
                 layoutManager.textContainerInset = newValue
                 layoutManager.setNeedsLayout()
                 setNeedsLayout()
-                // Invalidate selection rects cache when inset changes
-                cachedSelectionRange = nil
-                cachedSelectionRects = []
             }
         }
     }
@@ -371,9 +368,6 @@ final class TextInputView: UIView, UITextInput {
                 lineManager.estimatedLineHeight = estimatedLineHeight
                 layoutManager.setNeedsLayout()
                 setNeedsLayout()
-                // Invalidate selection rects cache when line height changes
-                cachedSelectionRange = nil
-                cachedSelectionRects = []
             }
         }
     }
@@ -505,9 +499,6 @@ final class TextInputView: UIView, UITextInput {
                 layoutManager.selectedRange = _selectedRange
                 layoutManager.setNeedsLayoutLineSelection()
                 setNeedsLayout()
-                // Invalidate selection rects cache when selection changes
-                cachedSelectionRange = nil
-                cachedSelectionRects = []
             }
         }
     }
@@ -588,8 +579,6 @@ final class TextInputView: UIView, UITextInput {
     private let contentSizeService: ContentSizeService
     private let caretRectService: CaretRectService
     private let selectionRectService: SelectionRectService
-    private var cachedSelectionRange: NSRange?
-    private var cachedSelectionRects: [UITextSelectionRect] = []
     private let highlightService: HighlightService
     private let invisibleCharacterConfiguration = InvisibleCharacterConfiguration()
     private var markedRange: NSRange? {
@@ -1345,18 +1334,7 @@ extension TextInputView {
 extension TextInputView {
     func selectionRects(for range: UITextRange) -> [UITextSelectionRect] {
         if let indexedRange = range as? IndexedRange {
-            let nsRange = indexedRange.range.nonNegativeLength
-
-            // Return cached rects if range hasn't changed
-            if nsRange == cachedSelectionRange {
-                return cachedSelectionRects
-            }
-
-            // Compute and cache
-            let rects = selectionRectService.selectionRects(in: nsRange)
-            cachedSelectionRange = nsRange
-            cachedSelectionRects = rects
-            return rects
+            return selectionRectService.selectionRects(in: indexedRange.range.nonNegativeLength)
         } else {
             return []
         }
