@@ -735,8 +735,9 @@ final class TextInputView: UIView, UITextInput {
     }
 
     override func selectAll(_ sender: Any?) {
-        notifyInputDelegateAboutSelectionChangeInLayoutSubviews = true
+        inputDelegate?.selectionWillChange(self)
         selectedRange = NSRange(location: 0, length: string.length)
+        inputDelegate?.selectionDidChange(self)
     }
 
     /// When autocorrection is enabled and the user tap on a misspelled word, UITextInteraction will present
