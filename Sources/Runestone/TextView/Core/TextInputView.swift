@@ -545,7 +545,6 @@ final class TextInputView: UIView, UITextInput {
                 gutterWidthService.lineManager = lineManager
                 contentSizeService.lineManager = lineManager
                 caretRectService.lineManager = lineManager
-                caretRectService.invalidateCache()
                 selectionRectService.lineManager = lineManager
                 highlightService.lineManager = lineManager
                 customTokenizer.lineManager = lineManager
@@ -1010,7 +1009,6 @@ private extension TextInputView {
             lineController.lineBreakMode = lineBreakMode
             lineController.invalidateSyntaxHighlighting()
         }
-        caretRectService.invalidateCache()
     }
 
     private func setupContentSizeObserver() {
@@ -1277,7 +1275,6 @@ extension TextInputView {
         let languageModeLineChangeSet = languageMode.textDidChange(textChange)
         lineChangeSet.union(with: languageModeLineChangeSet)
         applyLineChangesToLayoutManager(lineChangeSet)
-        caretRectService.invalidateCache()
         let updatedTextEditResult = TextEditResult(textChange: textChange, lineChangeSet: lineChangeSet)
         delegate?.textInputViewDidChange(self)
         if updatedTextEditResult.didAddOrRemoveLines {
