@@ -3,11 +3,24 @@ import UIKit
 final class CaretRectService {
     var stringView: StringView
     var lineManager: LineManager
-    var textContainerInset: UIEdgeInsets = .zero
-    var showLineNumbers = false
+    var textContainerInset: UIEdgeInsets = .zero {
+        didSet {
+            if textContainerInset != oldValue {
+                invalidateCache()
+            }
+        }
+    }
+    var showLineNumbers = false {
+        didSet {
+            if showLineNumbers != oldValue {
+                invalidateCache()
+            }
+        }
+    }
 
     private let lineControllerStorage: LineControllerStorage
     private let gutterWidthService: GutterWidthService
+    private var caretRectCache: [Int: CGRect] = [:]
     private var leadingLineSpacing: CGFloat {
         if showLineNumbers {
             return gutterWidthService.gutterWidth + textContainerInset.left
@@ -28,6 +41,12 @@ final class CaretRectService {
 
     func caretRect(at location: Int, allowMovingCaretToNextLineFragment: Bool) -> CGRect {
         let safeLocation = min(max(location, 0), stringView.string.length)
+
+        // Check cache for non-moving case
+        if !allowMovingCaretToNextLineFragment, let cachedRect = caretRectCache[safeLocation] {
+            return cachedRect
+        }
+
         let line = lineManager.line(containingCharacterAt: safeLocation)!
         let lineController = lineControllerStorage.getOrCreateLineController(for: line)
         let lineLocalLocation = safeLocation - line.location
@@ -38,8 +57,16 @@ final class CaretRectService {
             let localCaretRect = lineController.caretRect(atIndex: lineLocalLocation)
             let globalYPosition = line.yPosition + localCaretRect.minY
             let globalRect = CGRect(x: localCaretRect.minX, y: globalYPosition, width: localCaretRect.width, height: localCaretRect.height)
-            return globalRect.offsetBy(dx: leadingLineSpacing, dy: textContainerInset.top)
+            let result = globalRect.offsetBy(dx: leadingLineSpacing, dy: textContainerInset.top)
+
+            // Cache the result
+            caretRectCache[safeLocation] = result
+            return result
         }
+    }
+
+    func invalidateCache() {
+        caretRectCache.removeAll(keepingCapacity: true)
     }
 }
 
