@@ -20,6 +20,10 @@ protocol TextInputViewDelegate: AnyObject {
     func textInputView(_ view: TextInputView, replaceTextIn highlightedRange: HighlightedRange)
 }
 
+public class TextInputConfiguration {
+    public static var shouldReportSelectionOnLayoutSubviews: Bool = false
+}
+
 // swiftlint:disable:next type_body_length
 final class TextInputView: UIView, UITextInput {
     // MARK: - UITextInput
@@ -702,7 +706,7 @@ final class TextInputView: UIView, UITextInput {
         // We notify the input delegate about selection changes in layoutSubviews so we have a chance of disabling notifying the input delegate during an editing operation.
         // We will sometimes disable notifying the input delegate when the user enters Korean text.
         // This workaround is inspired by a dialog with Alexander Blach (@lextar), developer of Textastic.
-        if notifyInputDelegateAboutSelectionChangeInLayoutSubviews {
+        if notifyInputDelegateAboutSelectionChangeInLayoutSubviews && TextInputConfiguration.shouldReportSelectionOnLayoutSubviews {
             inputDelegate?.selectionWillChange(self)
             inputDelegate?.selectionDidChange(self)
         }
