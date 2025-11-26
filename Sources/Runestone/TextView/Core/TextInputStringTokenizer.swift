@@ -60,6 +60,10 @@ private extension TextInputStringTokenizer {
         let lineLocation = line.location
         let lineLocalLocation = location - lineLocation
         let lineController = lineControllerStorage.getOrCreateLineController(for: line)
+        // Ensure line fragments are prepared before accessing them
+        if lineController.numberOfLineFragments == 0 {
+            lineController.prepareToDisplayString(toLocation: lineLocalLocation, syntaxHighlightAsynchronously: false)
+        }
         guard lineLocalLocation >= 0 && lineLocalLocation <= line.data.totalLength else {
             return false
         }
