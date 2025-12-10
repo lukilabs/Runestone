@@ -147,6 +147,12 @@ final class LayoutManager {
     private var needsLayout = false
     private var needsLayoutLineSelection = false
 
+    // MARK: - firstRect Cache
+    // Cache for firstRect(for:) to avoid repeated tree lookups when UIKit queries character rects in sequence
+    private var cachedFirstRectLine: DocumentLineNode?
+    private var cachedFirstRectLineLocation: Int = 0
+    private var cachedFirstRectLineYPosition: CGFloat = 0
+
     init(lineManager: LineManager,
          languageMode: InternalLanguageMode,
          stringView: StringView,
@@ -237,17 +243,45 @@ final class LayoutManager {
 // MARK: - UITextInput
 extension LayoutManager {
     func firstRect(for range: NSRange) -> CGRect {
-        guard let line = lineManager.line(containingCharacterAt: range.location) else {
-            fatalError("Cannot find first rect.")
+        // Check if we can reuse the cached line (UIKit often queries sequential character rects)
+        let line: DocumentLineNode
+        let lineLocation: Int
+        let lineYPosition: CGFloat
+
+        if let cached = cachedFirstRectLine,
+           range.location >= cachedFirstRectLineLocation,
+           range.location < cachedFirstRectLineLocation + cached.value {
+            // Cache hit - reuse cached line data
+            line = cached
+            lineLocation = cachedFirstRectLineLocation
+            lineYPosition = cachedFirstRectLineYPosition
+        } else {
+            // Cache miss - look up the line and cache it
+            guard let foundLine = lineManager.line(containingCharacterAt: range.location) else {
+                fatalError("Cannot find first rect.")
+            }
+            line = foundLine
+            lineLocation = line.location
+            lineYPosition = line.yPosition
+            // Update cache
+            cachedFirstRectLine = line
+            cachedFirstRectLineLocation = lineLocation
+            cachedFirstRectLineYPosition = lineYPosition
         }
+
         let lineController = lineControllerStorage.getOrCreateLineController(for: line)
-        let localRange = NSRange(location: range.location - line.location, length: min(range.length, line.value))
+        let localRange = NSRange(location: range.location - lineLocation, length: min(range.length, line.value))
         let lineContentsRect = lineController.firstRect(for: localRange)
         let visibleWidth = viewport.width - gutterWidthService.gutterWidth
         let xPosition = lineContentsRect.minX + textContainerInset.left + gutterWidthService.gutterWidth
-        let yPosition = line.yPosition + lineContentsRect.minY + textContainerInset.top
+        let yPosition = lineYPosition + lineContentsRect.minY + textContainerInset.top
         let width = min(lineContentsRect.width, visibleWidth)
         return CGRect(x: xPosition, y: yPosition, width: width, height: lineContentsRect.height)
+    }
+
+    /// Invalidates the firstRect cache. Call this when the document structure changes.
+    func invalidateFirstRectCache() {
+        cachedFirstRectLine = nil
     }
 
     func closestIndex(to point: CGPoint) -> Int? {
@@ -284,6 +318,8 @@ extension LayoutManager {
 extension LayoutManager {
     func setNeedsLayout() {
         needsLayout = true
+        // Invalidate firstRect cache when layout changes (document structure may have changed)
+        cachedFirstRectLine = nil
     }
 
     func layoutIfNeeded() {

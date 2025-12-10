@@ -29,14 +29,36 @@ final class CaretRectService {
     func caretRect(at location: Int, allowMovingCaretToNextLineFragment: Bool) -> CGRect {
         let safeLocation = min(max(location, 0), stringView.string.length)
         let line = lineManager.line(containingCharacterAt: safeLocation)!
-        let lineController = lineControllerStorage.getOrCreateLineController(for: line)
-        let lineLocalLocation = safeLocation - line.location
-        if allowMovingCaretToNextLineFragment && shouldMoveCaretToNextLineFragment(forLocation: lineLocalLocation, in: line) {
+        // Pre-fetch location and yPosition to avoid multiple tree traversals
+        let lineLocation = line.location
+        let lineYPosition = line.yPosition
+        return caretRect(
+            at: location,
+            allowMovingCaretToNextLineFragment: allowMovingCaretToNextLineFragment,
+            cachedLine: line,
+            cachedLineLocation: lineLocation,
+            cachedLineYPosition: lineYPosition
+        )
+    }
+
+    /// Optimized version that accepts pre-fetched line data to avoid redundant tree traversals.
+    /// Use this when computing multiple caret rects to avoid O(log n) tree walks for each call.
+    func caretRect(
+        at location: Int,
+        allowMovingCaretToNextLineFragment: Bool,
+        cachedLine: DocumentLineNode,
+        cachedLineLocation: Int,
+        cachedLineYPosition: CGFloat
+    ) -> CGRect {
+        let safeLocation = min(max(location, 0), stringView.string.length)
+        let lineController = lineControllerStorage.getOrCreateLineController(for: cachedLine)
+        let lineLocalLocation = safeLocation - cachedLineLocation
+        if allowMovingCaretToNextLineFragment && shouldMoveCaretToNextLineFragment(forLocation: lineLocalLocation, in: cachedLine) {
             let rect = caretRect(at: location + 1, allowMovingCaretToNextLineFragment: false)
             return CGRect(x: leadingLineSpacing, y: rect.minY, width: rect.width, height: rect.height)
         } else {
             let localCaretRect = lineController.caretRect(atIndex: lineLocalLocation)
-            let globalYPosition = line.yPosition + localCaretRect.minY
+            let globalYPosition = cachedLineYPosition + localCaretRect.minY
             let globalRect = CGRect(x: localCaretRect.minX, y: globalYPosition, width: localCaretRect.width, height: localCaretRect.height)
             return globalRect.offsetBy(dx: leadingLineSpacing, dy: textContainerInset.top)
         }

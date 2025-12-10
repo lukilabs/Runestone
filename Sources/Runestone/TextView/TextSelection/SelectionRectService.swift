@@ -27,10 +27,66 @@ final class SelectionRectService {
             return []
         }
         let leadingLineSpacing = gutterWidthService.gutterWidth + textContainerInset.left
-        let selectsLineEnding = range.upperBound == endLine.location
+        // Pre-fetch endLine.location once to avoid multiple tree traversals
+        let endLineLocation = endLine.location
+        let selectsLineEnding = range.upperBound == endLineLocation
         let adjustedRange = NSRange(location: range.location, length: selectsLineEnding ? range.length - 1 : range.length)
-        let startCaretRect = caretRectService.caretRect(at: adjustedRange.lowerBound, allowMovingCaretToNextLineFragment: true)
-        let endCaretRect = caretRectService.caretRect(at: adjustedRange.upperBound, allowMovingCaretToNextLineFragment: false)
+
+        // Pre-fetch start line data to avoid redundant tree traversals
+        guard let startLine = lineManager.line(containingCharacterAt: adjustedRange.lowerBound) else {
+            return []
+        }
+        let startLineLocation = startLine.location
+        let startLineYPosition = startLine.yPosition
+
+        let startCaretRect = caretRectService.caretRect(
+            at: adjustedRange.lowerBound,
+            allowMovingCaretToNextLineFragment: true,
+            cachedLine: startLine,
+            cachedLineLocation: startLineLocation,
+            cachedLineYPosition: startLineYPosition
+        )
+
+        // For end caret, check if it's on the same line to reuse cached data
+        let endCaretRect: CGRect
+        if startLine === endLine || (adjustedRange.upperBound >= startLineLocation && adjustedRange.upperBound < startLineLocation + startLine.value) {
+            // End position is on the same line as start, reuse cached line data
+            endCaretRect = caretRectService.caretRect(
+                at: adjustedRange.upperBound,
+                allowMovingCaretToNextLineFragment: false,
+                cachedLine: startLine,
+                cachedLineLocation: startLineLocation,
+                cachedLineYPosition: startLineYPosition
+            )
+        } else {
+            // End position is on a different line, need to look up end line
+            // Check if we can reuse the already-fetched endLine
+            if adjustedRange.upperBound >= endLineLocation && adjustedRange.upperBound < endLineLocation + endLine.value {
+                let endLineYPosition = endLine.yPosition
+                endCaretRect = caretRectService.caretRect(
+                    at: adjustedRange.upperBound,
+                    allowMovingCaretToNextLineFragment: false,
+                    cachedLine: endLine,
+                    cachedLineLocation: endLineLocation,
+                    cachedLineYPosition: endLineYPosition
+                )
+            } else {
+                // Adjusted upper bound is on a different line than endLine, fetch the correct line
+                guard let adjustedEndLine = lineManager.line(containingCharacterAt: adjustedRange.upperBound) else {
+                    return []
+                }
+                let adjustedEndLineLocation = adjustedEndLine.location
+                let adjustedEndLineYPosition = adjustedEndLine.yPosition
+                endCaretRect = caretRectService.caretRect(
+                    at: adjustedRange.upperBound,
+                    allowMovingCaretToNextLineFragment: false,
+                    cachedLine: adjustedEndLine,
+                    cachedLineLocation: adjustedEndLineLocation,
+                    cachedLineYPosition: adjustedEndLineYPosition
+                )
+            }
+        }
+
         let fullWidth = max(contentSizeService.contentWidth, contentSizeService.scrollViewWidth) - leadingLineSpacing - textContainerInset.right
         if startCaretRect.minY == endCaretRect.minY && startCaretRect.maxY == endCaretRect.maxY {
             // Selecting text in the same line fragment.
