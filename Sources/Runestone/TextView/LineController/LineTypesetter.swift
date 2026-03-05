@@ -175,7 +175,7 @@ private extension LineTypesetter {
         // In that case we keep removeing characters from the line until we're below the constraining width.
         var length = suggestNextLineBreak(using: typesetter)
         var lineFragment: LineFragment?
-        while lineFragment == nil || lineFragment!.scaledSize.width > constrainingWidth {
+        while lineFragment == nil || (length > 1 && lineFragment!.scaledSize.width > constrainingWidth) {
             let visibleRange = CFRangeMake(startOffset, length)
             lineFragment = makeLineFragment(for: visibleRange, in: typesetter, lineFragmentIndex: lineFragmentIndex, yPosition: nextYPosition)
             length -= 1
