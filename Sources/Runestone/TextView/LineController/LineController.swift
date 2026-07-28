@@ -154,6 +154,12 @@ final class LineController {
         _lineHeight = nil
     }
 
+    // Re-wraps line fragments without touching string attributes, preserving syntax highlighting.
+    func invalidateTypesetting() {
+        isTypesetterInvalid = true
+        _lineHeight = nil
+    }
+
     func lineFragmentControllers(in rect: CGRect) -> [LineFragmentController] {
         let lineYPosition = line.yPosition
         let localMinY = rect.minY - lineYPosition

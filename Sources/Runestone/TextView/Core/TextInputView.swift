@@ -478,7 +478,7 @@ final class TextInputView: UIView, UITextInput {
                 contentSizeService.scrollViewWidth = scrollViewWidth
                 layoutManager.scrollViewWidth = scrollViewWidth
                 if isLineWrappingEnabled {
-                    invalidateLines()
+                    invalidateLineTypesetting()
                 }
             }
         }
@@ -1012,6 +1012,15 @@ private extension TextInputView {
             lineController.kern = kern
             lineController.lineBreakMode = lineBreakMode
             lineController.invalidateSyntaxHighlighting()
+        }
+    }
+
+    // Width changes only require re-wrapping the existing highlighted attributed string.
+    // Invalidating syntax highlighting here would wipe colors and re-highlight asynchronously,
+    // making text render plain for the duration of a live window resize.
+    private func invalidateLineTypesetting() {
+        for lineController in lineControllerStorage {
+            lineController.invalidateTypesetting()
         }
     }
 
