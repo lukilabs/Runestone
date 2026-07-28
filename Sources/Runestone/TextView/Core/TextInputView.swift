@@ -1037,7 +1037,7 @@ private extension TextInputView {
             if let self = self {
                 // Typeset lines again when the line number width changes since changing line number width may increase or reduce the number of line fragments in a line.
                 self.setNeedsLayout()
-                self.invalidateLines()
+                self.invalidateLineTypesetting()
                 self.layoutManager.setNeedsLayout()
                 self.delegate?.textInputViewDidChangeGutterWidth(self)
             }
